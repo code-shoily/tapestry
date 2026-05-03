@@ -1,6 +1,12 @@
 defmodule Tapestry.ViewableTest do
   use ExUnit.Case
 
+  doctest Tapestry.Visibility
+  doctest Tapestry.View.KanbanSpec
+  doctest Tapestry.View.TimelineSpec
+  doctest Tapestry.View.GraphSpec
+  doctest Tapestry.View.AnalysisSpec
+
   alias Tapestry.Visibility
   alias Tapestry.Viewable
 

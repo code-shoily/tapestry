@@ -1,6 +1,16 @@
 defmodule TapestryTest do
   use ExUnit.Case
 
+  doctest Tapestry
+  doctest Tapestry.Builder
+  doctest Tapestry.Query
+  doctest Tapestry.Analysis
+  doctest Tapestry.Serializer
+  doctest Tapestry.Helpers
+  doctest Tapestry.View.Kanban
+  doctest Tapestry.View.Timeline
+  doctest Tapestry.View.Graph
+
   describe "builder" do
     test "creates a project and adds tasks" do
       loom =
