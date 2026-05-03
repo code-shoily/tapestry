@@ -23,18 +23,64 @@ defmodule Tapestry.Builder do
     %{tapestry | graph: Yog.Multi.add_node(g, id, data)}
   end
 
+  @doc """
+  Adds a milestone node.
+
+  ## Options
+
+  - `:title` — display name
+  - `:due_date` — target date
+
+  ## Examples
+
+      iex> tapestry = Tapestry.new() |> Tapestry.Builder.add_milestone(:v1, title: "V1 Launch")
+      iex> [{id, data}] = Tapestry.Query.milestones(tapestry)
+      iex> id
+      :v1
+      iex> data.title
+      "V1 Launch"
+  """
   @spec add_milestone(Tapestry.t(), term(), keyword()) :: Tapestry.t()
   def add_milestone(%Tapestry{graph: g} = tapestry, id, opts \\ []) do
     data = Map.merge(%{type: :milestone}, Map.new(opts))
     %{tapestry | graph: Yog.Multi.add_node(g, id, data)}
   end
 
+  @doc """
+  Adds a user node.
+
+  ## Options
+
+  - `:name` — display name
+  - `:email` — contact email
+
+  ## Examples
+
+      iex> tapestry = Tapestry.new() |> Tapestry.Builder.add_user(:alice, name: "Alice")
+      iex> [{_id, data}] = Tapestry.Query.users(tapestry)
+      iex> data.name
+      "Alice"
+  """
   @spec add_user(Tapestry.t(), term(), keyword()) :: Tapestry.t()
   def add_user(%Tapestry{graph: g} = tapestry, id, opts \\ []) do
     data = Map.merge(%{type: :user}, Map.new(opts))
     %{tapestry | graph: Yog.Multi.add_node(g, id, data)}
   end
 
+  @doc """
+  Adds a label node for categorizing tasks.
+
+  ## Options
+
+  - `:title` — display name
+
+  ## Examples
+
+      iex> tapestry = Tapestry.new() |> Tapestry.Builder.add_label(:frontend, title: "Frontend")
+      iex> [{_id, data}] = Tapestry.Query.labels(tapestry)
+      iex> data.title
+      "Frontend"
+  """
   @spec add_label(Tapestry.t(), term(), keyword()) :: Tapestry.t()
   def add_label(%Tapestry{graph: g} = tapestry, id, opts \\ []) do
     data = Map.merge(%{type: :label}, Map.new(opts))
@@ -56,6 +102,15 @@ defmodule Tapestry.Builder do
 
   @doc """
   Removes a task node and all edges connected to it.
+
+  ## Examples
+
+      iex> tapestry = Tapestry.new() |> Tapestry.add_task(:a) |> Tapestry.add_task(:b) |> Tapestry.depends_on(:b, :a)
+      iex> tapestry = Tapestry.Builder.remove_task(tapestry, :a)
+      iex> Tapestry.Query.dependencies(tapestry, :b)
+      []
+      iex> length(Tapestry.Query.tasks(tapestry))
+      1
   """
   @spec remove_task(Tapestry.t(), term()) :: Tapestry.t()
   def remove_task(%Tapestry{graph: g} = tapestry, id) do

@@ -28,6 +28,17 @@ defmodule Tapestry.View.Kanban do
   - `:assignee` — Only include tasks assigned to this user.
   - `:label` — Only include tasks tagged with this label.
   - `:ticket_base_url` — Base URL for ticket links (e.g. Jira).
+
+  ## Examples
+
+      iex> tapestry = Tapestry.new("Test")
+      ...> |> Tapestry.add_task(:a, title: "Task A", status: :done)
+      ...> |> Tapestry.add_task(:b, title: "Task B", status: :backlog)
+      iex> kanban = Tapestry.View.Kanban.to_kanban(tapestry)
+      iex> kanban =~ "kanban"
+      true
+      iex> kanban =~ "Task A"
+      true
   """
   @spec to_kanban(Tapestry.t(), keyword()) :: String.t()
   def to_kanban(%Tapestry{} = tapestry, opts \\ []) do

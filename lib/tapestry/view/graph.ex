@@ -30,6 +30,22 @@ defmodule Tapestry.View.Graph do
   - `:show_assignments` — Include `:assigned_to` edges (default `false`)
   - `:show_labels` — Include `:tagged_with` edges (default `false`)
   - `:show_relations` — Include `:relates_to` edges (default `false`)
+
+  ## Examples
+
+      iex> tapestry = Tapestry.new("Test")
+      ...> |> Tapestry.add_milestone(:v1, title: "V1")
+      ...> |> Tapestry.add_task(:a, title: "Task A", status: :done)
+      ...> |> Tapestry.add_task(:b, title: "Task B", status: :in_progress)
+      ...> |> Tapestry.contains(:v1, :a)
+      ...> |> Tapestry.depends_on(:b, :a)
+      iex> graph = Tapestry.View.Graph.to_graph(tapestry)
+      iex> graph =~ "graph TD"
+      true
+      iex> graph =~ "Task A"
+      true
+      iex> graph =~ "-->"
+      true
   """
   @spec to_graph(Tapestry.t(), keyword()) :: String.t()
   def to_graph(%Tapestry{} = tapestry, opts \\ []) do

@@ -32,6 +32,18 @@ defmodule Tapestry.Analysis do
 
   @doc """
   Returns tasks that have unresolved dependencies or blockers.
+
+  Done and cancelled tasks are excluded.
+
+  ## Examples
+
+      iex> tapestry = Tapestry.new()
+      ...> |> Tapestry.add_task(:a, status: :backlog)
+      ...> |> Tapestry.add_task(:b, status: :backlog)
+      ...> |> Tapestry.depends_on(:a, :b)
+      iex> [{id, _}] = Tapestry.Analysis.blocked(tapestry)
+      iex> id
+      :a
   """
   @spec blocked(Tapestry.t()) :: [{term(), map()}]
   def blocked(%Tapestry{} = tapestry) do
@@ -66,6 +78,24 @@ defmodule Tapestry.Analysis do
 
   Returns `{:ok, path, total_estimate}` or `:error` if the dependency graph
   contains a cycle.
+
+  ## Examples
+
+      iex> tapestry = Tapestry.new()
+      ...> |> Tapestry.add_task(:a, estimate_hours: 2)
+      ...> |> Tapestry.add_task(:b, estimate_hours: 3)
+      ...> |> Tapestry.depends_on(:b, :a)
+      iex> {:ok, [:a, :b], total_estimate: 5} = Tapestry.Analysis.critical_path(tapestry)
+
+      iex> tapestry = Tapestry.new()
+      ...> |> Tapestry.add_task(:a)
+      ...> |> Tapestry.add_task(:b)
+      ...> |> Tapestry.add_task(:c)
+      ...> |> Tapestry.depends_on(:b, :a)
+      ...> |> Tapestry.depends_on(:a, :c)
+      ...> |> Tapestry.depends_on(:c, :b)
+      iex> Tapestry.Analysis.critical_path(tapestry)
+      :error
   """
   @spec critical_path(Tapestry.t(), keyword()) :: {:ok, [term()], keyword()} | :error
   def critical_path(%Tapestry{} = tapestry, opts \\ []) do
@@ -110,6 +140,20 @@ defmodule Tapestry.Analysis do
   (directly or transitively).
 
   High count = task blocks a lot of downstream work (bottleneck).
+
+  ## Examples
+
+      iex> tapestry = Tapestry.new()
+      ...> |> Tapestry.add_task(:core)
+      ...> |> Tapestry.add_task(:a)
+      ...> |> Tapestry.add_task(:b)
+      ...> |> Tapestry.depends_on(:a, :core)
+      ...> |> Tapestry.depends_on(:b, :core)
+      iex> [{top_id, top_count} | _rest] = Tapestry.Analysis.bottlenecks(tapestry)
+      iex> top_id
+      :core
+      iex> top_count
+      2
   """
   @spec bottlenecks(Tapestry.t()) :: [{term(), non_neg_integer()}]
   def bottlenecks(%Tapestry{} = tapestry) do
@@ -132,6 +176,25 @@ defmodule Tapestry.Analysis do
 
   Returns a list of issues like `{:error, :cycle_detected, nodes}` or
   `{:warning, :unassigned_in_progress, task_id}`.
+
+  ## Examples
+
+      iex> tapestry = Tapestry.new() |> Tapestry.add_task(:a, status: :in_progress)
+      iex> Tapestry.Analysis.validate(tapestry)
+      [{:warning, :unassigned_in_progress, :a}]
+
+      iex> tapestry = Tapestry.new()
+      ...> |> Tapestry.add_task(:a)
+      ...> |> Tapestry.add_task(:b)
+      ...> |> Tapestry.add_task(:c)
+      ...> |> Tapestry.depends_on(:b, :a)
+      ...> |> Tapestry.depends_on(:a, :c)
+      ...> |> Tapestry.depends_on(:c, :b)
+      iex> [{:error, :cycle_detected, nodes}] = Tapestry.Analysis.validate(tapestry)
+      iex> is_list(nodes)
+      true
+      iex> :a in nodes
+      true
   """
   @spec validate(Tapestry.t()) :: list()
   def validate(%Tapestry{graph: _g} = tapestry) do

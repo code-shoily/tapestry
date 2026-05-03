@@ -21,17 +21,37 @@ defmodule Tapestry do
       iex> id
       :impl
 
+  ## Node Types
+
+  | Type | Builder | Default Properties |
+  |------|---------|-------------------|
+  | `:task` | `add_task/3` | `status: :backlog`, `priority: :medium` |
+  | `:milestone` | `add_milestone/3` | none |
+  | `:user` | `add_user/3` | none |
+  | `:label` | `add_label/3` | none |
+
+  ## Edge Types
+
+  | Type | Builder | Direction | Meaning |
+  |------|---------|-----------|---------|
+  | `:contains` | `contains/3` | milestone → task | Hierarchy |
+  | `:depends_on` | `depends_on/3` | dependency → task | Finish-to-start |
+  | `:blocks` | `blocks/3` | blocker → blocked | Semantic blocker |
+  | `:assigned_to` | `assign/3` | task → user | Ownership |
+  | `:tagged_with` | `tag/3` | task → label | Categorization |
+  | `:relates_to` | `relates/3` | bidirectional | Loose association |
+
   ## Architecture
 
-  Tapestry is structured into four layers:
+  Tapestry is structured into four layers, all operating on the same
+  `%Tapestry{}` struct which wraps a `Yog.Multi.Graph`:
 
-  - **Builder** — `add_task/3`, `depends_on/3`, `assign/3`, etc.
-  - **Query** — `tasks/1`, `dependencies/2`, `assignee/2`, etc.
-  - **Analysis** — `ready/1`, `critical_path/2`, `bottlenecks/1`, `validate/1`
-  - **Views** — `to_kanban/2`, `to_timeline/2`, `to_graph/2`
-
-  All layers operate on the same `%Tapestry{}` struct, which wraps a
-  `Yog.Multi.Graph` from `yog_ex`.
+  | Layer | Key Functions |
+  |-------|--------------|
+  | **Builder** | `add_task/3`, `add_milestone/3`, `depends_on/3`, `assign/3`, `tag/3`, `update_task/3`, `remove_task/2` |
+  | **Query** | `tasks/1`, `milestones/1`, `children/2`, `parent/2`, `dependencies/2`, `dependents/2`, `assignee/2`, `assigned_tasks/2` |
+  | **Analysis** | `ready/1`, `blocked/1`, `orphans/1`, `critical_path/2`, `bottlenecks/1`, `validate/1` |
+  | **Views** | `to_kanban/2`, `to_timeline/2`, `to_graph/2` |
   """
 
   alias Tapestry.{Analysis, Builder, Query}

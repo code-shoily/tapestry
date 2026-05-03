@@ -21,15 +21,55 @@ defmodule Tapestry.Query do
   @spec tasks(Tapestry.t()) :: [{term(), map()}]
   def tasks(%Tapestry{graph: g}), do: nodes_of_type(g, :task)
 
+  @doc """
+  Returns all milestone nodes.
+
+  ## Examples
+
+      iex> tapestry = Tapestry.new() |> Tapestry.add_milestone(:v1, title: "V1")
+      iex> [{id, _}] = Tapestry.Query.milestones(tapestry)
+      iex> id
+      :v1
+  """
   @spec milestones(Tapestry.t()) :: [{term(), map()}]
   def milestones(%Tapestry{graph: g}), do: nodes_of_type(g, :milestone)
 
+  @doc """
+  Returns all user nodes.
+
+  ## Examples
+
+      iex> tapestry = Tapestry.new() |> Tapestry.add_user(:alice, name: "Alice")
+      iex> [{_id, data}] = Tapestry.Query.users(tapestry)
+      iex> data.name
+      "Alice"
+  """
   @spec users(Tapestry.t()) :: [{term(), map()}]
   def users(%Tapestry{graph: g}), do: nodes_of_type(g, :user)
 
+  @doc """
+  Returns all label nodes.
+
+  ## Examples
+
+      iex> tapestry = Tapestry.new() |> Tapestry.add_label(:frontend, title: "Frontend")
+      iex> [{_id, data}] = Tapestry.Query.labels(tapestry)
+      iex> data.title
+      "Frontend"
+  """
   @spec labels(Tapestry.t()) :: [{term(), map()}]
   def labels(%Tapestry{graph: g}), do: nodes_of_type(g, :label)
 
+  @doc """
+  Returns tasks filtered by status.
+
+  ## Examples
+
+      iex> tapestry = Tapestry.new() |> Tapestry.add_task(:a, status: :done) |> Tapestry.add_task(:b, status: :backlog)
+      iex> [{id, _}] = Tapestry.Query.tasks_by_status(tapestry, :done)
+      iex> id
+      :a
+  """
   @spec tasks_by_status(Tapestry.t(), atom()) :: [{term(), map()}]
   def tasks_by_status(%Tapestry{graph: g}, status) do
     g.nodes
@@ -78,6 +118,17 @@ defmodule Tapestry.Query do
     |> List.first()
   end
 
+  @doc """
+  Returns the IDs of nodes that `id` depends on.
+
+  Includes both `:depends_on` and `:blocks` edges.
+
+  ## Examples
+
+      iex> tapestry = Tapestry.new() |> Tapestry.add_task(:a) |> Tapestry.add_task(:b) |> Tapestry.depends_on(:b, :a)
+      iex> Tapestry.Query.dependencies(tapestry, :b)
+      [:a]
+  """
   @spec dependencies(Tapestry.t(), term()) :: [term()]
   def dependencies(%Tapestry{graph: g}, id) do
     g
@@ -86,6 +137,17 @@ defmodule Tapestry.Query do
     |> Enum.map(fn {_eid, from, _to, _data} -> from end)
   end
 
+  @doc """
+  Returns the IDs of nodes that depend on `id`.
+
+  Includes both `:depends_on` and `:blocks` edges.
+
+  ## Examples
+
+      iex> tapestry = Tapestry.new() |> Tapestry.add_task(:a) |> Tapestry.add_task(:b) |> Tapestry.depends_on(:b, :a)
+      iex> Tapestry.Query.dependents(tapestry, :a)
+      [:b]
+  """
   @spec dependents(Tapestry.t(), term()) :: [term()]
   def dependents(%Tapestry{graph: g}, id) do
     g
@@ -94,6 +156,18 @@ defmodule Tapestry.Query do
     |> Enum.map(fn {_eid, _from, to, _data} -> to end)
   end
 
+  @doc """
+  Returns the user ID assigned to a task, or `nil` if unassigned.
+
+  ## Examples
+
+      iex> tapestry = Tapestry.new() |> Tapestry.add_task(:t1) |> Tapestry.add_user(:alice) |> Tapestry.assign(:t1, :alice)
+      iex> Tapestry.Query.assignee(tapestry, :t1)
+      :alice
+
+      iex> Tapestry.Query.assignee(Tapestry.new() |> Tapestry.add_task(:t1), :t1)
+      nil
+  """
   @spec assignee(Tapestry.t(), term()) :: term() | nil
   def assignee(%Tapestry{graph: g}, id) do
     g
@@ -103,6 +177,19 @@ defmodule Tapestry.Query do
     |> List.first()
   end
 
+  @doc """
+  Returns all task IDs assigned to a given user.
+
+  ## Examples
+
+      iex> tapestry = Tapestry.new()
+      ...> |> Tapestry.add_task(:t1)
+      ...> |> Tapestry.add_task(:t2)
+      ...> |> Tapestry.add_user(:alice)
+      ...> |> Tapestry.assign(:t1, :alice)
+      iex> Tapestry.Query.assigned_tasks(tapestry, :alice)
+      [:t1]
+  """
   @spec assigned_tasks(Tapestry.t(), term()) :: [term()]
   def assigned_tasks(%Tapestry{graph: g}, user_id) do
     g

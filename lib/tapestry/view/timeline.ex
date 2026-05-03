@@ -22,6 +22,20 @@ defmodule Tapestry.View.Timeline do
   - `:milestone` — Only include tasks under this milestone
   - `:section_by` — `:milestone` or `:assignee` to group tasks into sections
   - `:start_date` — Base date for synthetic scheduling (defaults to today)
+
+  ## Examples
+
+      iex> tapestry = Tapestry.new("Launch")
+      ...> |> Tapestry.add_task(:design, title: "Design", status: :done, estimate_hours: 16)
+      ...> |> Tapestry.add_task(:impl, title: "Implement", status: :backlog, estimate_hours: 24)
+      ...> |> Tapestry.depends_on(:impl, :design)
+      iex> gantt = Tapestry.View.Timeline.to_timeline(tapestry, start_date: ~D[2026-05-01])
+      iex> gantt =~ "gantt"
+      true
+      iex> gantt =~ "Launch"
+      true
+      iex> gantt =~ "Design"
+      true
   """
   @spec to_timeline(Tapestry.t(), keyword()) :: String.t()
   def to_timeline(%Tapestry{} = tapestry, opts \\ []) do
