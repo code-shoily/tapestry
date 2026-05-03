@@ -18,11 +18,11 @@ defprotocol Tapestry.Viewable do
 
       # In a data loader (e.g., LiveView mount):
       vis = Tapestry.Viewable.visibility(spec)
-      loom = load_from_db(project_id, vis)
+      tapestry = load_from_db(project_id, vis)
 
       # In a render path:
-      loom = Tapestry.Viewable.transform(spec, loom)
-      output = Tapestry.Viewable.render(spec, loom)
+      tapestry = Tapestry.Viewable.transform(spec, tapestry)
+      output = Tapestry.Viewable.render(spec, tapestry)
 
   ## Implementing
 
@@ -42,9 +42,9 @@ defprotocol Tapestry.Viewable do
           }
         end
 
-        def transform(_spec, loom), do: loom
+        def transform(_spec, tapestry), do: tapestry
 
-        def render(spec, loom) do
+        def render(spec, tapestry) do
           # Custom burndown chart logic
         end
       end
@@ -67,7 +67,7 @@ defprotocol Tapestry.Viewable do
   Return the `%Tapestry{}` unchanged if no transformation is needed.
   """
   @spec transform(t(), Tapestry.t()) :: Tapestry.t()
-  def transform(view, loom)
+  def transform(view, tapestry)
 
   @doc """
   Renders the transformed `%Tapestry{}` into the view's output format.
@@ -76,5 +76,5 @@ defprotocol Tapestry.Viewable do
   Kanban columns, a list of analysis results, etc.
   """
   @spec render(t(), Tapestry.t()) :: term()
-  def render(view, loom)
+  def render(view, tapestry)
 end

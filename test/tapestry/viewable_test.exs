@@ -7,8 +7,8 @@ defmodule Tapestry.ViewableTest do
   doctest Tapestry.View.GraphSpec
   doctest Tapestry.View.AnalysisSpec
 
-  alias Tapestry.Visibility
   alias Tapestry.Viewable
+  alias Tapestry.Visibility
 
   # ---- Visibility struct tests ----
 
@@ -94,7 +94,7 @@ defmodule Tapestry.ViewableTest do
 
   # ---- Viewable protocol tests ----
 
-  defp sample_loom do
+  defp sample_tapestry do
     Tapestry.new("Test Project")
     |> Tapestry.add_milestone(:v1, title: "V1 Launch")
     |> Tapestry.add_task(:design, title: "Design", status: :done, estimate_hours: 8)
@@ -132,28 +132,28 @@ defmodule Tapestry.ViewableTest do
     end
 
     test "render produces kanban output" do
-      loom = sample_loom()
+      tapestry = sample_tapestry()
       spec = %Tapestry.View.KanbanSpec{}
 
-      result = Viewable.render(spec, loom)
+      result = Viewable.render(spec, tapestry)
       assert is_binary(result)
       assert result =~ "kanban"
       assert result =~ "Design"
     end
 
     test "render with milestone filter" do
-      loom = sample_loom()
+      tapestry = sample_tapestry()
       spec = %Tapestry.View.KanbanSpec{milestone: :v1}
 
-      result = Viewable.render(spec, loom)
+      result = Viewable.render(spec, tapestry)
       assert result =~ "Design"
     end
 
     test "render_view/2 works through facade" do
-      loom = sample_loom()
+      tapestry = sample_tapestry()
       spec = %Tapestry.View.KanbanSpec{}
 
-      result = Tapestry.render_view(loom, spec)
+      result = Tapestry.render_view(tapestry, spec)
       assert is_binary(result)
       assert result =~ "kanban"
     end
@@ -171,20 +171,20 @@ defmodule Tapestry.ViewableTest do
     end
 
     test "render produces gantt output" do
-      loom = sample_loom()
+      tapestry = sample_tapestry()
       spec = %Tapestry.View.TimelineSpec{start_date: ~D[2026-05-01]}
 
-      result = Viewable.render(spec, loom)
+      result = Viewable.render(spec, tapestry)
       assert is_binary(result)
       assert result =~ "gantt"
       assert result =~ "Design"
     end
 
     test "render with section_by assignee" do
-      loom = sample_loom()
+      tapestry = sample_tapestry()
       spec = %Tapestry.View.TimelineSpec{section_by: :assignee, start_date: ~D[2026-05-01]}
 
-      result = Viewable.render(spec, loom)
+      result = Viewable.render(spec, tapestry)
       assert result =~ "section Alice"
     end
   end
@@ -211,10 +211,10 @@ defmodule Tapestry.ViewableTest do
     end
 
     test "render produces flowchart output" do
-      loom = sample_loom()
+      tapestry = sample_tapestry()
       spec = %Tapestry.View.GraphSpec{direction: :lr}
 
-      result = Viewable.render(spec, loom)
+      result = Viewable.render(spec, tapestry)
       assert is_binary(result)
       assert result =~ "graph LR"
     end
@@ -231,36 +231,36 @@ defmodule Tapestry.ViewableTest do
     end
 
     test "render dispatches ready" do
-      loom = sample_loom()
+      tapestry = sample_tapestry()
       spec = %Tapestry.View.AnalysisSpec{operation: :ready}
 
-      result = Viewable.render(spec, loom)
+      result = Viewable.render(spec, tapestry)
       assert is_list(result)
     end
 
     test "render dispatches critical_path" do
-      loom = sample_loom()
+      tapestry = sample_tapestry()
       spec = %Tapestry.View.AnalysisSpec{operation: :critical_path}
 
-      assert {:ok, path, total_estimate: _total} = Viewable.render(spec, loom)
+      assert {:ok, path, total_estimate: _total} = Viewable.render(spec, tapestry)
       assert is_list(path)
     end
 
     test "render dispatches validate" do
-      loom = sample_loom()
+      tapestry = sample_tapestry()
       spec = %Tapestry.View.AnalysisSpec{operation: :validate}
 
-      result = Viewable.render(spec, loom)
+      result = Viewable.render(spec, tapestry)
       assert is_list(result)
       # impl is in_progress but assigned — alice is assigned to design not impl
       assert {:warning, :unassigned_in_progress, :impl} in result
     end
 
     test "render dispatches bottlenecks" do
-      loom = sample_loom()
+      tapestry = sample_tapestry()
       spec = %Tapestry.View.AnalysisSpec{operation: :bottlenecks}
 
-      result = Viewable.render(spec, loom)
+      result = Viewable.render(spec, tapestry)
       assert is_list(result)
       {top_id, _count} = hd(result)
       assert top_id == :design
@@ -268,8 +268,8 @@ defmodule Tapestry.ViewableTest do
   end
 
   describe "transform is identity for all specs" do
-    test "all specs return loom unchanged from transform" do
-      loom = sample_loom()
+    test "all specs return tapestry unchanged from transform" do
+      tapestry = sample_tapestry()
 
       specs = [
         %Tapestry.View.KanbanSpec{},
@@ -279,7 +279,7 @@ defmodule Tapestry.ViewableTest do
       ]
 
       for spec <- specs do
-        assert Viewable.transform(spec, loom) == loom
+        assert Viewable.transform(spec, tapestry) == tapestry
       end
     end
   end

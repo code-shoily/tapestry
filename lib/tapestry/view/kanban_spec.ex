@@ -32,9 +32,9 @@ defimpl Tapestry.Viewable, for: Tapestry.View.KanbanSpec do
     }
   end
 
-  def transform(_spec, loom), do: loom
+  def transform(_spec, tapestry), do: tapestry
 
-  def render(spec, loom) do
+  def render(spec, tapestry) do
     opts =
       []
       |> then(fn o -> if spec.milestone, do: [{:milestone, spec.milestone} | o], else: o end)
@@ -44,6 +44,6 @@ defimpl Tapestry.Viewable, for: Tapestry.View.KanbanSpec do
         if spec.ticket_base_url, do: [{:ticket_base_url, spec.ticket_base_url} | o], else: o
       end)
 
-    Tapestry.View.Kanban.to_kanban(loom, opts)
+    Tapestry.View.Kanban.to_kanban(tapestry, opts)
   end
 end

@@ -7,13 +7,12 @@ defmodule Tapestry.Serializer do
 
   ## Examples
 
-      # Serialize
-      blob = Tapestry.Serializer.to_term(loom)
-      # => <<131, 104, 3, ...>>
-
-      # Deserialize
-      loom = Tapestry.Serializer.from_term(blob)
-      # => %Tapestry{...}
+      iex> tapestry = Tapestry.new("Project")
+      iex> blob = Tapestry.Serializer.to_term(tapestry)
+      iex> is_binary(blob)
+      true
+      iex> Tapestry.Serializer.from_term(blob) == tapestry
+      true
 
   For JSON serialization, use `Yog.IO.JSON` directly if you have
   the `:jason` dependency available in your application.
@@ -25,8 +24,8 @@ defmodule Tapestry.Serializer do
   Serialize a Tapestry project to a binary using Erlang's external term format.
   """
   @spec to_term(Tapestry.t()) :: binary()
-  def to_term(%Tapestry{} = loom) do
-    :erlang.term_to_binary(loom)
+  def to_term(%Tapestry{} = tapestry) do
+    :erlang.term_to_binary(tapestry)
   end
 
   @doc """
@@ -38,7 +37,7 @@ defmodule Tapestry.Serializer do
   @spec from_term(binary()) :: Tapestry.t()
   def from_term(binary) when is_binary(binary) do
     case :erlang.binary_to_term(binary, [:safe]) do
-      %Tapestry{} = loom -> loom
+      %Tapestry{} = tapestry -> tapestry
       other -> raise ArgumentError, "expected a Tapestry struct, got: #{inspect(other)}"
     end
   end

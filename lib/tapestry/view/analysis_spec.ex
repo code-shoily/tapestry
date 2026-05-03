@@ -35,28 +35,28 @@ defimpl Tapestry.Viewable, for: Tapestry.View.AnalysisSpec do
     }
   end
 
-  def transform(_spec, loom), do: loom
+  def transform(_spec, tapestry), do: tapestry
 
-  def render(spec, loom) do
+  def render(spec, tapestry) do
     case spec.operation do
       :ready ->
-        Tapestry.Analysis.ready(loom)
+        Tapestry.Analysis.ready(tapestry)
 
       :blocked ->
-        Tapestry.Analysis.blocked(loom)
+        Tapestry.Analysis.blocked(tapestry)
 
       :orphans ->
-        Tapestry.Analysis.orphans(loom)
+        Tapestry.Analysis.orphans(tapestry)
 
       :bottlenecks ->
-        Tapestry.Analysis.bottlenecks(loom)
+        Tapestry.Analysis.bottlenecks(tapestry)
 
       :validate ->
-        Tapestry.Analysis.validate(loom)
+        Tapestry.Analysis.validate(tapestry)
 
       :critical_path ->
         opts = if spec.milestone, do: [milestone: spec.milestone], else: []
-        Tapestry.Analysis.critical_path(loom, opts)
+        Tapestry.Analysis.critical_path(tapestry, opts)
     end
   end
 end

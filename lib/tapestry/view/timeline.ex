@@ -24,22 +24,22 @@ defmodule Tapestry.View.Timeline do
   - `:start_date` — Base date for synthetic scheduling (defaults to today)
   """
   @spec to_timeline(Tapestry.t(), keyword()) :: String.t()
-  def to_timeline(%Tapestry{} = loom, opts \\ []) do
-    title = Keyword.get(opts, :title, loom.name || "Project Timeline")
+  def to_timeline(%Tapestry{} = tapestry, opts \\ []) do
+    title = Keyword.get(opts, :title, tapestry.name || "Project Timeline")
     section_by = Keyword.get(opts, :section_by, :milestone)
     base_date = Keyword.get(opts, :start_date, Date.utc_today())
 
     tasks =
       case Keyword.get(opts, :milestone) do
-        nil -> Query.tasks(loom)
-        m_id -> Query.tasks(loom) |> filter_by_milestone(loom, m_id)
+        nil -> Query.tasks(tapestry)
+        m_id -> Query.tasks(tapestry) |> filter_by_milestone(tapestry, m_id)
       end
 
     if tasks == [] do
       "gantt\n    title #{Helpers.escape(title)}\n"
     else
       # Compute start dates and durations for all tasks
-      schedule = compute_schedule(loom, tasks, base_date)
+      schedule = compute_schedule(tapestry, tasks, base_date)
 
       header = [
         "gantt",
@@ -47,7 +47,7 @@ defmodule Tapestry.View.Timeline do
         "    dateFormat #{@default_date_format}"
       ]
 
-      sections = group_into_sections(tasks, loom, section_by)
+      sections = group_into_sections(tasks, tapestry, section_by)
 
       section_lines =
         Enum.flat_map(sections, fn {section_name, section_tasks} ->
@@ -96,11 +96,11 @@ defmodule Tapestry.View.Timeline do
 
   # --- Scheduling ---
 
-  defp compute_schedule(loom, tasks, base_date) do
+  defp compute_schedule(tapestry, tasks, base_date) do
     task_ids = Enum.map(tasks, fn {id, _} -> id end) |> MapSet.new()
 
     # Build dependency order among the selected tasks
-    dag = Helpers.build_restricted_dag(loom, task_ids)
+    dag = Helpers.build_restricted_dag(tapestry, task_ids)
 
     {:ok, sorted} =
       case Yog.Traversal.Sort.topological_sort(dag) do
@@ -111,7 +111,7 @@ defmodule Tapestry.View.Timeline do
 
     # Compute start dates
     Enum.reduce(sorted, %{}, fn id, acc ->
-      data = loom.graph.nodes[id]
+      data = tapestry.graph.nodes[id]
 
       {start, duration} =
         case {data[:start_date], data[:due_date], data[:estimate_hours]} do
@@ -162,23 +162,23 @@ defmodule Tapestry.View.Timeline do
 
   # --- Sectioning ---
 
-  defp group_into_sections(tasks, loom, :milestone) do
+  defp group_into_sections(tasks, tapestry, :milestone) do
     tasks
     |> Enum.group_by(fn {id, _} ->
-      case Query.parent(loom, id) do
+      case Query.parent(tapestry, id) do
         nil -> "Backlog"
-        m_id -> loom.graph.nodes[m_id][:title] || inspect(m_id)
+        m_id -> tapestry.graph.nodes[m_id][:title] || inspect(m_id)
       end
     end)
     |> Enum.to_list()
   end
 
-  defp group_into_sections(tasks, loom, :assignee) do
+  defp group_into_sections(tasks, tapestry, :assignee) do
     tasks
     |> Enum.group_by(fn {id, _} ->
-      case Query.assignee(loom, id) do
+      case Query.assignee(tapestry, id) do
         nil -> "Unassigned"
-        u_id -> loom.graph.nodes[u_id][:name] || inspect(u_id)
+        u_id -> tapestry.graph.nodes[u_id][:name] || inspect(u_id)
       end
     end)
     |> Enum.to_list()
@@ -188,8 +188,8 @@ defmodule Tapestry.View.Timeline do
     [{"Tasks", tasks}]
   end
 
-  defp filter_by_milestone(tasks, loom, m_id) do
-    ms_children = Query.children(loom, m_id) |> MapSet.new()
+  defp filter_by_milestone(tasks, tapestry, m_id) do
+    ms_children = Query.children(tapestry, m_id) |> MapSet.new()
     Enum.filter(tasks, fn {id, _} -> id in ms_children end)
   end
 end

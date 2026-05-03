@@ -32,9 +32,9 @@ defimpl Tapestry.Viewable, for: Tapestry.View.TimelineSpec do
     }
   end
 
-  def transform(_spec, loom), do: loom
+  def transform(_spec, tapestry), do: tapestry
 
-  def render(spec, loom) do
+  def render(spec, tapestry) do
     opts =
       []
       |> then(fn o -> if spec.milestone, do: [{:milestone, spec.milestone} | o], else: o end)
@@ -42,6 +42,6 @@ defimpl Tapestry.Viewable, for: Tapestry.View.TimelineSpec do
       |> then(fn o -> if spec.start_date, do: [{:start_date, spec.start_date} | o], else: o end)
       |> then(fn o -> [{:section_by, spec.section_by} | o] end)
 
-    Tapestry.View.Timeline.to_timeline(loom, opts)
+    Tapestry.View.Timeline.to_timeline(tapestry, opts)
   end
 end

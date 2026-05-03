@@ -13,13 +13,20 @@ defmodule Tapestry.Analysis do
   @doc """
   Returns tasks with status `:backlog` or `:todo` whose dependencies
   are all `:done`.
+
+  ## Examples
+
+      iex> tapestry = Tapestry.new() |> Tapestry.add_task(:t1, status: :todo)
+      iex> [{id, _}] = Tapestry.Analysis.ready(tapestry)
+      iex> id
+      :t1
   """
   @spec ready(Tapestry.t()) :: [{term(), map()}]
-  def ready(%Tapestry{} = loom) do
-    loom
+  def ready(%Tapestry{} = tapestry) do
+    tapestry
     |> Query.tasks()
     |> Enum.filter(fn {id, data} ->
-      data[:status] in [:backlog, :todo] and deps_resolved?(loom, id)
+      data[:status] in [:backlog, :todo] and deps_resolved?(tapestry, id)
     end)
   end
 
@@ -27,22 +34,29 @@ defmodule Tapestry.Analysis do
   Returns tasks that have unresolved dependencies or blockers.
   """
   @spec blocked(Tapestry.t()) :: [{term(), map()}]
-  def blocked(%Tapestry{} = loom) do
-    loom
+  def blocked(%Tapestry{} = tapestry) do
+    tapestry
     |> Query.tasks()
     |> Enum.filter(fn {id, data} ->
-      data[:status] not in [:done, :cancelled] and not deps_resolved?(loom, id)
+      data[:status] not in [:done, :cancelled] and not deps_resolved?(tapestry, id)
     end)
   end
 
   @doc """
   Returns tasks with no `:contains` relationship.
+
+  ## Examples
+
+      iex> tapestry = Tapestry.new() |> Tapestry.add_task(:t1)
+      iex> [{id, _}] = Tapestry.Analysis.orphans(tapestry)
+      iex> id
+      :t1
   """
   @spec orphans(Tapestry.t()) :: [{term(), map()}]
-  def orphans(%Tapestry{} = loom) do
-    loom
+  def orphans(%Tapestry{} = tapestry) do
+    tapestry
     |> Query.tasks()
-    |> Enum.filter(fn {id, _data} -> Query.parent(loom, id) == nil end)
+    |> Enum.filter(fn {id, _data} -> Query.parent(tapestry, id) == nil end)
   end
 
   @doc """
@@ -54,26 +68,26 @@ defmodule Tapestry.Analysis do
   contains a cycle.
   """
   @spec critical_path(Tapestry.t(), keyword()) :: {:ok, [term()], keyword()} | :error
-  def critical_path(%Tapestry{} = loom, opts \\ []) do
+  def critical_path(%Tapestry{} = tapestry, opts \\ []) do
     task_ids =
       case Keyword.get(opts, :milestone) do
         nil ->
-          Query.tasks(loom) |> Enum.map(fn {id, _} -> id end) |> MapSet.new()
+          Query.tasks(tapestry) |> Enum.map(fn {id, _} -> id end) |> MapSet.new()
 
         m_id ->
-          Query.children(loom, m_id) |> MapSet.new()
+          Query.children(tapestry, m_id) |> MapSet.new()
       end
 
     if MapSet.size(task_ids) == 0 do
       {:ok, [], total_estimate: 0}
     else
-      dag = weighted_dependency_dag(loom, task_ids)
+      dag = weighted_dependency_dag(tapestry, task_ids)
 
       case Yog.Traversal.Sort.topological_sort(dag) do
         {:ok, sorted} ->
           {dist, pred} =
             Enum.reduce(sorted, {%{}, %{}}, fn node, acc ->
-              update_distances(loom, dag, node, acc)
+              update_distances(tapestry, dag, node, acc)
             end)
 
           {end_node, max_dist} =
@@ -98,10 +112,10 @@ defmodule Tapestry.Analysis do
   High count = task blocks a lot of downstream work (bottleneck).
   """
   @spec bottlenecks(Tapestry.t()) :: [{term(), non_neg_integer()}]
-  def bottlenecks(%Tapestry{} = loom) do
-    dep_graph = dependency_subgraph(loom)
+  def bottlenecks(%Tapestry{} = tapestry) do
+    dep_graph = dependency_subgraph(tapestry)
 
-    loom
+    tapestry
     |> Query.tasks()
     |> Enum.map(fn {id, _data} ->
       # Count all nodes reachable from this task via dependency edges
@@ -120,11 +134,11 @@ defmodule Tapestry.Analysis do
   `{:warning, :unassigned_in_progress, task_id}`.
   """
   @spec validate(Tapestry.t()) :: list()
-  def validate(%Tapestry{graph: _g} = loom) do
+  def validate(%Tapestry{graph: _g} = tapestry) do
     issues = []
 
     # Cycles in dependencies
-    dep_graph = dependency_subgraph(loom)
+    dep_graph = dependency_subgraph(tapestry)
 
     issues =
       if Yog.Property.Cyclicity.cyclic?(dep_graph) do
@@ -135,10 +149,10 @@ defmodule Tapestry.Analysis do
 
     # In-progress tasks without assignees
     issues =
-      loom
+      tapestry
       |> Query.tasks()
       |> Enum.filter(fn {id, data} ->
-        data[:status] == :in_progress and Query.assignee(loom, id) == nil
+        data[:status] == :in_progress and Query.assignee(tapestry, id) == nil
       end)
       |> Enum.reduce(issues, fn {id, _data}, acc ->
         [{:warning, :unassigned_in_progress, id} | acc]
@@ -149,11 +163,11 @@ defmodule Tapestry.Analysis do
 
   # --- Helpers ---
 
-  defp deps_resolved?(%Tapestry{} = loom, id) do
-    loom
+  defp deps_resolved?(%Tapestry{} = tapestry, id) do
+    tapestry
     |> Query.dependencies(id)
     |> Enum.all?(fn dep_id ->
-      case loom.graph.nodes[dep_id] do
+      case tapestry.graph.nodes[dep_id] do
         nil -> true
         data -> data[:status] == :done
       end
@@ -167,15 +181,15 @@ defmodule Tapestry.Analysis do
     end
   end
 
-  defp dependency_subgraph(loom) do
+  defp dependency_subgraph(tapestry) do
     simple = Yog.directed()
 
     simple =
-      Enum.reduce(loom.graph.nodes, simple, fn {id, _data}, acc ->
+      Enum.reduce(tapestry.graph.nodes, simple, fn {id, _data}, acc ->
         Yog.Model.add_node(acc, id, nil)
       end)
 
-    Enum.reduce(loom.graph.edges, simple, fn {_eid, {from, to, data}}, acc ->
+    Enum.reduce(tapestry.graph.edges, simple, fn {_eid, {from, to, data}}, acc ->
       if data[:type] in [:depends_on, :blocks] do
         case Yog.Model.add_edge(acc, from, to, nil) do
           {:ok, g} -> g
@@ -187,12 +201,12 @@ defmodule Tapestry.Analysis do
     end)
   end
 
-  defp weighted_dependency_dag(loom, allowed_nodes) do
+  defp weighted_dependency_dag(tapestry, allowed_nodes) do
     simple = Yog.directed()
     allowed = allowed_nodes
 
     simple =
-      Enum.reduce(loom.graph.nodes, simple, fn {id, _data}, acc ->
+      Enum.reduce(tapestry.graph.nodes, simple, fn {id, _data}, acc ->
         if id in allowed do
           Yog.Model.add_node(acc, id, nil)
         else
@@ -200,9 +214,9 @@ defmodule Tapestry.Analysis do
         end
       end)
 
-    Enum.reduce(loom.graph.edges, simple, fn {_eid, {from, to, data}}, acc ->
+    Enum.reduce(tapestry.graph.edges, simple, fn {_eid, {from, to, data}}, acc ->
       if data[:type] in [:depends_on, :blocks] and from in allowed and to in allowed do
-        weight = task_estimate(loom, to)
+        weight = task_estimate(tapestry, to)
 
         case Yog.Model.add_edge(acc, from, to, weight) do
           {:ok, g} -> g
@@ -214,9 +228,9 @@ defmodule Tapestry.Analysis do
     end)
   end
 
-  defp update_distances(loom, dag, node, {dist_acc, pred_acc}) do
+  defp update_distances(tapestry, dag, node, {dist_acc, pred_acc}) do
     preds = Helpers.predecessors(dag, node)
-    weight = task_estimate(loom, node)
+    weight = task_estimate(tapestry, node)
 
     if preds == [] do
       {Map.put(dist_acc, node, weight), pred_acc}

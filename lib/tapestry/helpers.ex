@@ -5,6 +5,13 @@ defmodule Tapestry.Helpers do
 
   @doc """
   Sanitizes an ID for use in Mermaid diagram identifiers.
+
+  ## Examples
+
+      iex> Tapestry.Helpers.sanitize_id(:task_1)
+      "task_1"
+      iex> Tapestry.Helpers.sanitize_id("Task-1")
+      "Task_1"
   """
   @spec sanitize_id(term()) :: String.t()
   def sanitize_id(id) when is_atom(id), do: Atom.to_string(id)
@@ -13,6 +20,11 @@ defmodule Tapestry.Helpers do
 
   @doc """
   Escapes a string for safe use in Mermaid labels.
+
+  ## Examples
+
+      iex> Tapestry.Helpers.escape("Task \\"One\\"")
+      "Task \\\\\\"One\\\\\\""
   """
   @spec escape(term()) :: String.t()
   def escape(str) do

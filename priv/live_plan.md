@@ -44,7 +44,7 @@
 
 ### Files
 
-#### `[NEW] lib/loom/schema/node.ex`
+#### `[NEW] lib/tapestry/schema/node.ex`
 
 Ecto schema for graph nodes. All node types share one table with a `:type` discriminator.
 
@@ -80,7 +80,7 @@ end
 
 > **Design note:** Single-table inheritance keeps queries simple and avoids JOINs for mixed-type listings. The tradeoff is nullable columns per type. If this feels wrong, split into `loom_tasks`, `loom_milestones`, etc. with a union view — but STI is simpler for a graph-native model where cross-type queries are common.
 
-#### `[NEW] lib/loom/schema/edge.ex`
+#### `[NEW] lib/tapestry/schema/edge.ex`
 
 ```elixir
 defmodule Tapestry.Schema.Edge do
@@ -105,7 +105,7 @@ end
 
 > **Reactions are edges**, not nodes. A reaction is `user --(:reacted_to, emoji: "👍")--> comment`. This avoids graph bloat (thousands of reaction nodes) while keeping them queryable.
 
-#### `[NEW] lib/loom/schema/reaction.ex` (optional, alternative)
+#### `[NEW] lib/tapestry/schema/reaction.ex` (optional, alternative)
 
 If you want reactions to be more than edge metadata (e.g., toggle on/off, count aggregation), a dedicated lightweight table may be cleaner:
 
@@ -145,7 +145,7 @@ Standard migration. Key indexes:
 
 ### Files
 
-#### `[NEW] lib/loom/visibility.ex`
+#### `[NEW] lib/tapestry/visibility.ex`
 
 ```elixir
 defmodule Tapestry.Visibility do
@@ -176,7 +176,7 @@ defmodule Tapestry.Visibility do
 end
 ```
 
-#### `[NEW] lib/loom/viewable.ex`
+#### `[NEW] lib/tapestry/viewable.ex`
 
 ```elixir
 defprotocol Tapestry.Viewable do
@@ -195,11 +195,11 @@ defprotocol Tapestry.Viewable do
 
   @doc "Transforms the loaded Tapestry graph (filter, reshape, annotate)"
   @spec transform(t(), Tapestry.t()) :: Tapestry.t()
-  def transform(view, loom)
+  def transform(view, tapestry)
 
   @doc "Renders the transformed graph into output"
   @spec render(t(), Tapestry.t()) :: term()
-  def render(view, loom)
+  def render(view, tapestry)
 end
 ```
 
@@ -208,7 +208,7 @@ end
 Each existing view gets a spec struct + protocol implementation:
 
 ```elixir
-# [NEW] lib/loom/view/kanban_spec.ex
+# [NEW] lib/tapestry/view/kanban_spec.ex
 defmodule Tapestry.View.KanbanSpec do
   defstruct [:milestone, :assignee, :label, :ticket_base_url]
 end
@@ -225,12 +225,12 @@ defimpl Tapestry.Viewable, for: Tapestry.View.KanbanSpec do
     }
   end
 
-  def transform(spec, loom) do
+  def transform(spec, tapestry) do
     # Apply assignee/label filters as graph transforms
-    loom
+    tapestry
   end
 
-  def render(_spec, loom), do: Tapestry.View.Kanban.to_kanban(loom)
+  def render(_spec, tapestry), do: Tapestry.View.Kanban.to_kanban(tapestry)
 end
 ```
 
@@ -244,7 +244,7 @@ Similar specs for `TimelineSpec`, `GraphSpec`, `TaskDetailSpec`, `AnalysisSpec`.
 
 ### Files
 
-#### `[NEW] lib/loom/stream.ex`
+#### `[NEW] lib/tapestry/stream.ex`
 
 ```elixir
 defmodule Tapestry.Stream do
@@ -272,12 +272,12 @@ defmodule Tapestry.Stream do
 
     {builder, graph} = build_graph(nodes, edges)
 
-    loom = %Tapestry{
+    tapestry = %Tapestry{
       name: nil,  # loaded separately or from a projects table
       graph: graph
     }
 
-    {loom, builder}
+    {tapestry, builder}
   end
 
   @doc """
@@ -288,8 +288,8 @@ defmodule Tapestry.Stream do
   """
   @spec apply_transition(Tapestry.t(), LiveBuilder.t(), transition :: tuple()) ::
           {Tapestry.t(), LiveBuilder.t()}
-  def apply_transition(loom, builder, transition) do
-    # ... queue transition in builder, sync, update loom.graph
+  def apply_transition(tapestry, builder, transition) do
+    # ... queue transition in builder, sync, update tapestry.graph
   end
 
   # --- Private ---
@@ -349,7 +349,7 @@ Start with option 2 (simpler), optimize to option 1 if performance matters.
 
 ### Files
 
-#### `[NEW] lib/loom/engine.ex`
+#### `[NEW] lib/tapestry/engine.ex`
 
 ```elixir
 defmodule Tapestry.Engine do
@@ -366,7 +366,7 @@ defmodule Tapestry.Engine do
 
   use GenServer
 
-  defstruct [:project_id, :loom, :builder, :repo, :pubsub]
+  defstruct [:project_id, :tapestry, :builder, :repo, :pubsub]
 
   # --- Client API ---
 
@@ -410,11 +410,11 @@ defmodule Tapestry.Engine do
 
     # Load full graph on init (no visibility filter for the engine)
     full_vis = %Tapestry.Visibility{node_types: [], edge_types: []}
-    {loom, builder} = Tapestry.Stream.load(project_id, full_vis, repo)
+    {tapestry, builder} = Tapestry.Stream.load(project_id, full_vis, repo)
 
     {:ok, %__MODULE__{
       project_id: project_id,
-      loom: loom,
+      tapestry: tapestry,
       builder: builder,
       repo: repo,
       pubsub: pubsub
@@ -428,18 +428,18 @@ defmodule Tapestry.Engine do
 
     # 2. Queue in builder + sync
     builder = Yog.Builder.Live.add_edge(state.builder, ...)
-    {builder, graph} = Yog.Builder.Live.sync(builder, state.loom.graph)
+    {builder, graph} = Yog.Builder.Live.sync(builder, state.tapestry.graph)
 
     # 3. Broadcast transition
     broadcast(state, {:node_added, :task, ref, attrs})
 
-    {:reply, :ok, %{state | builder: builder, loom: %{state.loom | graph: graph}}}
+    {:reply, :ok, %{state | builder: builder, tapestry: %{state.tapestry | graph: graph}}}
   end
 
   # ... similar handlers for other mutations
 
   defp broadcast(state, transition) do
-    Phoenix.PubSub.broadcast(state.pubsub, "loom:#{state.project_id}", transition)
+    Phoenix.PubSub.broadcast(state.pubsub, "tapestry:#{state.project_id}", transition)
   end
 
   defp via(project_id), do: {:via, Registry, {Tapestry.Registry, project_id}}
@@ -455,20 +455,20 @@ defmodule MyAppWeb.KanbanLive do
   @impl true
   def mount(%{"project_id" => pid}, _session, socket) do
     if connected?(socket) do
-      Phoenix.PubSub.subscribe(MyApp.PubSub, "loom:#{pid}")
+      Phoenix.PubSub.subscribe(MyApp.PubSub, "tapestry:#{pid}")
     end
 
     spec = %Tapestry.View.KanbanSpec{milestone: nil}
     vis = Tapestry.Viewable.visibility(spec)
 
     # Load only what this view needs
-    {loom, builder} = Tapestry.Stream.load(pid, vis, MyApp.Repo)
-    rendered = Tapestry.Viewable.render(spec, loom)
+    {tapestry, builder} = Tapestry.Stream.load(pid, vis, MyApp.Repo)
+    rendered = Tapestry.Viewable.render(spec, tapestry)
 
     {:ok, assign(socket,
       project_id: pid,
       spec: spec,
-      loom: loom,
+      tapestry: tapestry,
       builder: builder,
       kanban: rendered
     )}
@@ -477,14 +477,14 @@ defmodule MyAppWeb.KanbanLive do
   @impl true
   def handle_info({:node_added, :task, _ref, _attrs} = transition, socket) do
     # This transition matches our visibility (tasks are in our spec)
-    {loom, builder} = Tapestry.Stream.apply_transition(
-      socket.assigns.loom,
+    {tapestry, builder} = Tapestry.Stream.apply_transition(
+      socket.assigns.tapestry,
       socket.assigns.builder,
       transition
     )
 
-    rendered = Tapestry.Viewable.render(socket.assigns.spec, loom)
-    {:noreply, assign(socket, loom: loom, builder: builder, kanban: rendered)}
+    rendered = Tapestry.Viewable.render(socket.assigns.spec, tapestry)
+    {:noreply, assign(socket, tapestry: tapestry, builder: builder, kanban: rendered)}
   end
 
   def handle_info({:node_added, :comment, _, _}, socket) do
@@ -502,15 +502,15 @@ end
 
 ### Files to modify
 
-#### `[MODIFY] lib/loom/builder.ex`
+#### `[MODIFY] lib/tapestry/builder.ex`
 
 Add:
 ```elixir
-def add_comment(loom, id, opts \\ [])
-def comment_on(loom, comment_id, target_id)
-def authored_by(loom, comment_id, user_id)
-def reply_to(loom, reply_id, parent_id)
-def react(loom, user_id, target_id, opts)  # edge-based, not node
+def add_comment(tapestry, id, opts \\ [])
+def comment_on(tapestry, comment_id, target_id)
+def authored_by(tapestry, comment_id, user_id)
+def reply_to(tapestry, reply_id, parent_id)
+def react(tapestry, user_id, target_id, opts)  # edge-based, not node
 ```
 
 Validation:
@@ -519,21 +519,21 @@ Validation:
 - `reply_to`: both must be `:comment`
 - `react`: user must be `:user`, target must exist
 
-#### `[MODIFY] lib/loom/query.ex`
+#### `[MODIFY] lib/tapestry/query.ex`
 
 Add:
 ```elixir
-def comments(loom, target_id)      # all comments on a task/comment
-def comment_author(loom, comment_id)
-def thread(loom, root_comment_id)   # recursive walk via reply_to
-def reactions(loom, target_id)      # edge query, returns [{user_id, emoji}]
+def comments(tapestry, target_id)      # all comments on a task/comment
+def comment_author(tapestry, comment_id)
+def thread(tapestry, root_comment_id)   # recursive walk via reply_to
+def reactions(tapestry, target_id)      # edge query, returns [{user_id, emoji}]
 ```
 
-#### `[MODIFY] lib/loom.ex`
+#### `[MODIFY] lib/tapestry.ex`
 
 Add delegates for new builder/query functions.
 
-#### `[NEW] lib/loom/view/task_detail_spec.ex`
+#### `[NEW] lib/tapestry/view/task_detail_spec.ex`
 
 A view spec that loads EVERYTHING for one task: the task itself, its comments (with bodies), comment authors, reactions, dependencies.
 
@@ -572,7 +572,7 @@ end
 1. **Wrapper module** `Tapestry.LiveSync` that reimplements `apply_transitions` for Multi.Graph:
 
 ```elixir
-# [NEW] lib/loom/live_sync.ex
+# [NEW] lib/tapestry/live_sync.ex
 defmodule Tapestry.LiveSync do
   @moduledoc """
   Applies Yog.Builder.Live transitions to a Yog.Multi.Graph.
@@ -626,7 +626,7 @@ Start with option 1, contribute option 2 when stable.
 | 6 | Phase 3: Tapestry.Stream (full Ecto version) | 3 hr | Phase 1 |
 | 7 | Phase 4: Tapestry.Engine GenServer | 3 hr | Phase 3, 6 |
 
-> **Recommendation:** Do phases 6 → 2 → 3 (DB-less) → 4 first. These are all pure library code with no Ecto dependency — they can live in the `loom` package itself. Phases 1, 3 (full), and 7 require a Phoenix app context and should be built in the consuming application or a separate `tapestry_ecto` package.
+> **Recommendation:** Do phases 6 → 2 → 3 (DB-less) → 4 first. These are all pure library code with no Ecto dependency — they can live in the `tapestry` package itself. Phases 1, 3 (full), and 7 require a Phoenix app context and should be built in the consuming application or a separate `tapestry_ecto` package.
 
 ---
 
@@ -636,11 +636,11 @@ Each phase gets its own test file:
 
 | Phase | Test file | Key assertions |
 |-------|-----------|----------------|
-| Phase 6 | `test/loom/live_sync_test.exs` | Transitions apply to Multi.Graph correctly |
-| Phase 2 | `test/loom/visibility_test.exs` | Specs filter correctly, protocol dispatches |
-| Phase 3 | `test/loom/stream_test.exs` | Load → mutate → reload roundtrip |
-| Phase 4 | `test/loom/engine_test.exs` | GenServer lifecycle, PubSub broadcasts |
-| Phase 5 | `test/loom/comments_test.exs` | Comment/reaction CRUD, threading, validation |
+| Phase 6 | `test/tapestry/live_sync_test.exs` | Transitions apply to Multi.Graph correctly |
+| Phase 2 | `test/tapestry/visibility_test.exs` | Specs filter correctly, protocol dispatches |
+| Phase 3 | `test/tapestry/stream_test.exs` | Load → mutate → reload roundtrip |
+| Phase 4 | `test/tapestry/engine_test.exs` | GenServer lifecycle, PubSub broadcasts |
+| Phase 5 | `test/tapestry/comments_test.exs` | Comment/reaction CRUD, threading, validation |
 
 ---
 
@@ -650,8 +650,8 @@ Each phase gets its own test file:
 
 | Option | Pros | Cons |
 |--------|------|------|
-| **Monolith** (`loom`) | Simple deps, one repo | Pulls in Ecto/Phoenix for library users who don't need it |
-| **Split** (`loom` + `tapestry_ecto` + `tapestry_live`) | Clean deps, each package is focused | More repos, version coordination |
-| **Core + optional** (`loom` with optional Ecto) | One repo, conditional compilation | `Code.ensure_loaded?` checks, harder to test |
+| **Monolith** (`tapestry`) | Simple deps, one repo | Pulls in Ecto/Phoenix for library users who don't need it |
+| **Split** (`tapestry` + `tapestry_ecto` + `tapestry_live`) | Clean deps, each package is focused | More repos, version coordination |
+| **Core + optional** (`tapestry` with optional Ecto) | One repo, conditional compilation | `Code.ensure_loaded?` checks, harder to test |
 
-**Recommendation:** Keep `loom` as the pure library (phases 2, 4, 5, 6). Create `tapestry_ecto` for phases 1, 3, 7 — this depends on `loom`, `ecto_sql`, and `phoenix_pubsub`. Consuming Phoenix apps depend on `tapestry_ecto`.
+**Recommendation:** Keep `tapestry` as the pure library (phases 2, 4, 5, 6). Create `tapestry_ecto` for phases 1, 3, 7 — this depends on `tapestry`, `ecto_sql`, and `phoenix_pubsub`. Consuming Phoenix apps depend on `tapestry_ecto`.

@@ -8,6 +8,16 @@ defmodule Tapestry.Query do
 
   alias Tapestry
 
+  @doc """
+  Returns all task nodes.
+
+  ## Examples
+
+      iex> tapestry = Tapestry.new() |> Tapestry.add_task(:t1, title: "T1")
+      iex> [{id, _}] = Tapestry.Query.tasks(tapestry)
+      iex> id
+      :t1
+  """
   @spec tasks(Tapestry.t()) :: [{term(), map()}]
   def tasks(%Tapestry{graph: g}), do: nodes_of_type(g, :task)
 
@@ -27,6 +37,18 @@ defmodule Tapestry.Query do
     |> Enum.map(fn {id, data} -> {id, data} end)
   end
 
+  @doc """
+  Returns child node IDs for a given node (connected via `:contains` edge).
+
+  ## Examples
+
+      iex> tapestry = Tapestry.new()
+      iex> tapestry = Tapestry.add_milestone(tapestry, :m1)
+      iex> tapestry = Tapestry.add_task(tapestry, :t1)
+      iex> tapestry = Tapestry.contains(tapestry, :m1, :t1)
+      iex> Tapestry.Query.children(tapestry, :m1)
+      [:t1]
+  """
   @spec children(Tapestry.t(), term()) :: [term()]
   def children(%Tapestry{graph: g}, id) do
     g
@@ -35,6 +57,18 @@ defmodule Tapestry.Query do
     |> Enum.map(fn {_eid, _from, to, _data} -> to end)
   end
 
+  @doc """
+  Returns the parent node ID for a given node (connected via `:contains` edge).
+
+  ## Examples
+
+      iex> tapestry = Tapestry.new()
+      iex> tapestry = Tapestry.add_milestone(tapestry, :m1)
+      iex> tapestry = Tapestry.add_task(tapestry, :t1)
+      iex> tapestry = Tapestry.contains(tapestry, :m1, :t1)
+      iex> Tapestry.Query.parent(tapestry, :t1)
+      :m1
+  """
   @spec parent(Tapestry.t(), term()) :: term() | nil
   def parent(%Tapestry{graph: g}, id) do
     g

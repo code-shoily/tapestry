@@ -55,9 +55,9 @@ defimpl Tapestry.Viewable, for: Tapestry.View.GraphSpec do
     }
   end
 
-  def transform(_spec, loom), do: loom
+  def transform(_spec, tapestry), do: tapestry
 
-  def render(spec, loom) do
+  def render(spec, tapestry) do
     opts = [
       direction: spec.direction,
       show_contains: spec.show_contains,
@@ -69,6 +69,6 @@ defimpl Tapestry.Viewable, for: Tapestry.View.GraphSpec do
     opts =
       if spec.milestone, do: [{:milestone, spec.milestone} | opts], else: opts
 
-    Tapestry.View.Graph.to_graph(loom, opts)
+    Tapestry.View.Graph.to_graph(tapestry, opts)
   end
 end

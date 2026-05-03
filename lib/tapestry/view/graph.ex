@@ -32,18 +32,18 @@ defmodule Tapestry.View.Graph do
   - `:show_relations` — Include `:relates_to` edges (default `false`)
   """
   @spec to_graph(Tapestry.t(), keyword()) :: String.t()
-  def to_graph(%Tapestry{} = loom, opts \\ []) do
+  def to_graph(%Tapestry{} = tapestry, opts \\ []) do
     direction = Keyword.get(opts, :direction, :td)
     dir_str = if direction == :lr, do: "LR", else: "TD"
 
     task_ids =
       case Keyword.get(opts, :milestone) do
         nil -> nil
-        m_id -> Query.children(loom, m_id) |> MapSet.new()
+        m_id -> Query.children(tapestry, m_id) |> MapSet.new()
       end
 
-    nodes = collect_nodes(loom, task_ids)
-    edges = collect_edges(loom, task_ids, opts)
+    nodes = collect_nodes(tapestry, task_ids)
+    edges = collect_edges(tapestry, task_ids, opts)
 
     header = ["graph #{dir_str}"]
 
@@ -82,15 +82,15 @@ defmodule Tapestry.View.Graph do
 
   # --- Node collection ---
 
-  defp collect_nodes(loom, nil) do
+  defp collect_nodes(tapestry, nil) do
     task_nodes =
-      Query.tasks(loom)
+      Query.tasks(tapestry)
       |> Enum.map(fn {id, data} ->
         {id, :task, data[:title] || inspect(id), data[:status]}
       end)
 
     milestone_nodes =
-      Query.milestones(loom)
+      Query.milestones(tapestry)
       |> Enum.map(fn {id, data} ->
         {id, :milestone, data[:title] || inspect(id), nil}
       end)
@@ -98,8 +98,8 @@ defmodule Tapestry.View.Graph do
     task_nodes ++ milestone_nodes
   end
 
-  defp collect_nodes(loom, allowed) do
-    collect_nodes(loom, nil)
+  defp collect_nodes(tapestry, allowed) do
+    collect_nodes(tapestry, nil)
     |> Enum.filter(fn {id, type, _label, _status} ->
       type == :milestone or id in allowed
     end)
@@ -107,13 +107,13 @@ defmodule Tapestry.View.Graph do
 
   # --- Edge collection ---
 
-  defp collect_edges(loom, task_ids, opts) do
+  defp collect_edges(tapestry, task_ids, opts) do
     _show_contains = Keyword.get(opts, :show_contains, true)
     _show_assignments = Keyword.get(opts, :show_assignments, false)
     _show_labels = Keyword.get(opts, :show_labels, false)
     _show_relations = Keyword.get(opts, :show_relations, false)
 
-    loom.graph.edges
+    tapestry.graph.edges
     |> Enum.flat_map(fn {_eid, {from, to, data}} ->
       allowed? = task_ids == nil or from in task_ids or to in task_ids
 

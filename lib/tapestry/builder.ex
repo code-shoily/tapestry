@@ -18,27 +18,27 @@ defmodule Tapestry.Builder do
   - `:title`, `:due_date`, `:estimate_hours`, `:actual_hours`, etc.
   """
   @spec add_task(Tapestry.t(), term(), keyword()) :: Tapestry.t()
-  def add_task(%Tapestry{graph: g} = loom, id, opts \\ []) do
+  def add_task(%Tapestry{graph: g} = tapestry, id, opts \\ []) do
     data = Map.merge(%{type: :task, status: :backlog, priority: :medium}, Map.new(opts))
-    %{loom | graph: Yog.Multi.add_node(g, id, data)}
+    %{tapestry | graph: Yog.Multi.add_node(g, id, data)}
   end
 
   @spec add_milestone(Tapestry.t(), term(), keyword()) :: Tapestry.t()
-  def add_milestone(%Tapestry{graph: g} = loom, id, opts \\ []) do
+  def add_milestone(%Tapestry{graph: g} = tapestry, id, opts \\ []) do
     data = Map.merge(%{type: :milestone}, Map.new(opts))
-    %{loom | graph: Yog.Multi.add_node(g, id, data)}
+    %{tapestry | graph: Yog.Multi.add_node(g, id, data)}
   end
 
   @spec add_user(Tapestry.t(), term(), keyword()) :: Tapestry.t()
-  def add_user(%Tapestry{graph: g} = loom, id, opts \\ []) do
+  def add_user(%Tapestry{graph: g} = tapestry, id, opts \\ []) do
     data = Map.merge(%{type: :user}, Map.new(opts))
-    %{loom | graph: Yog.Multi.add_node(g, id, data)}
+    %{tapestry | graph: Yog.Multi.add_node(g, id, data)}
   end
 
   @spec add_label(Tapestry.t(), term(), keyword()) :: Tapestry.t()
-  def add_label(%Tapestry{graph: g} = loom, id, opts \\ []) do
+  def add_label(%Tapestry{graph: g} = tapestry, id, opts \\ []) do
     data = Map.merge(%{type: :label}, Map.new(opts))
-    %{loom | graph: Yog.Multi.add_node(g, id, data)}
+    %{tapestry | graph: Yog.Multi.add_node(g, id, data)}
   end
 
   @doc """
@@ -48,18 +48,18 @@ defmodule Tapestry.Builder do
   Raises `ArgumentError` if the node does not exist or is not a task.
   """
   @spec update_task(Tapestry.t(), term(), keyword()) :: Tapestry.t()
-  def update_task(%Tapestry{graph: g} = loom, id, opts) do
+  def update_task(%Tapestry{graph: g} = tapestry, id, opts) do
     require_node!(g, id, :task, "update_task")
     current = Map.fetch!(g.nodes, id)
-    %{loom | graph: Yog.Multi.add_node(g, id, Map.merge(current, Map.new(opts)))}
+    %{tapestry | graph: Yog.Multi.add_node(g, id, Map.merge(current, Map.new(opts)))}
   end
 
   @doc """
   Removes a task node and all edges connected to it.
   """
   @spec remove_task(Tapestry.t(), term()) :: Tapestry.t()
-  def remove_task(%Tapestry{graph: g} = loom, id) do
-    %{loom | graph: Yog.Multi.remove_node(g, id)}
+  def remove_task(%Tapestry{graph: g} = tapestry, id) do
+    %{tapestry | graph: Yog.Multi.remove_node(g, id)}
   end
 
   # --- Edges ---
@@ -70,11 +70,11 @@ defmodule Tapestry.Builder do
   The parent must be a milestone and the child must be a task.
   """
   @spec contains(Tapestry.t(), term(), term()) :: Tapestry.t()
-  def contains(%Tapestry{graph: g} = loom, parent, child) do
+  def contains(%Tapestry{graph: g} = tapestry, parent, child) do
     require_node!(g, parent, :milestone, "contains")
     require_node!(g, child, :task, "contains")
     {graph, _eid} = Yog.Multi.add_edge(g, parent, child, %{type: :contains})
-    %{loom | graph: graph}
+    %{tapestry | graph: graph}
   end
 
   @doc """
@@ -84,11 +84,11 @@ defmodule Tapestry.Builder do
   before task can start*. Both must be tasks.
   """
   @spec depends_on(Tapestry.t(), term(), term()) :: Tapestry.t()
-  def depends_on(%Tapestry{graph: g} = loom, task, dependency) do
+  def depends_on(%Tapestry{graph: g} = tapestry, task, dependency) do
     require_node!(g, task, :task, "depends_on")
     require_node!(g, dependency, :task, "depends_on")
     {graph, _eid} = Yog.Multi.add_edge(g, dependency, task, %{type: :depends_on})
-    %{loom | graph: graph}
+    %{tapestry | graph: graph}
   end
 
   @doc """
@@ -98,11 +98,11 @@ defmodule Tapestry.Builder do
   Both must be tasks.
   """
   @spec blocks(Tapestry.t(), term(), term()) :: Tapestry.t()
-  def blocks(%Tapestry{graph: g} = loom, blocker, blocked) do
+  def blocks(%Tapestry{graph: g} = tapestry, blocker, blocked) do
     require_node!(g, blocker, :task, "blocks")
     require_node!(g, blocked, :task, "blocks")
     {graph, _eid} = Yog.Multi.add_edge(g, blocker, blocked, %{type: :blocks})
-    %{loom | graph: graph}
+    %{tapestry | graph: graph}
   end
 
   @doc """
@@ -111,11 +111,11 @@ defmodule Tapestry.Builder do
   Raises if `task` is not a task node or `user` is not a user node.
   """
   @spec assign(Tapestry.t(), term(), term()) :: Tapestry.t()
-  def assign(%Tapestry{graph: g} = loom, task, user) do
+  def assign(%Tapestry{graph: g} = tapestry, task, user) do
     require_node!(g, task, :task, "assign")
     require_node!(g, user, :user, "assign")
     {graph, _eid} = Yog.Multi.add_edge(g, task, user, %{type: :assigned_to})
-    %{loom | graph: graph}
+    %{tapestry | graph: graph}
   end
 
   @doc """
@@ -124,11 +124,11 @@ defmodule Tapestry.Builder do
   Raises if `task` is not a task node or `label` is not a label node.
   """
   @spec tag(Tapestry.t(), term(), term()) :: Tapestry.t()
-  def tag(%Tapestry{graph: g} = loom, task, label) do
+  def tag(%Tapestry{graph: g} = tapestry, task, label) do
     require_node!(g, task, :task, "tag")
     require_node!(g, label, :label, "tag")
     {graph, _eid} = Yog.Multi.add_edge(g, task, label, %{type: :tagged_with})
-    %{loom | graph: graph}
+    %{tapestry | graph: graph}
   end
 
   @doc """
@@ -137,12 +137,12 @@ defmodule Tapestry.Builder do
   Both nodes must exist.
   """
   @spec relates(Tapestry.t(), term(), term()) :: Tapestry.t()
-  def relates(%Tapestry{graph: g} = loom, a, b) do
+  def relates(%Tapestry{graph: g} = tapestry, a, b) do
     require_existing!(g, a, "relates")
     require_existing!(g, b, "relates")
     {g1, _eid1} = Yog.Multi.add_edge(g, a, b, %{type: :relates_to})
     {g2, _eid2} = Yog.Multi.add_edge(g1, b, a, %{type: :relates_to})
-    %{loom | graph: g2}
+    %{tapestry | graph: g2}
   end
 
   # --- Validation Helpers ---

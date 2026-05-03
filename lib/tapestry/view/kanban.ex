@@ -30,20 +30,20 @@ defmodule Tapestry.View.Kanban do
   - `:ticket_base_url` — Base URL for ticket links (e.g. Jira).
   """
   @spec to_kanban(Tapestry.t(), keyword()) :: String.t()
-  def to_kanban(%Tapestry{} = loom, opts \\ []) do
-    tasks = Query.tasks(loom)
+  def to_kanban(%Tapestry{} = tapestry, opts \\ []) do
+    tasks = Query.tasks(tapestry)
 
     tasks =
       Enum.reduce(opts, tasks, fn
         {:milestone, m_id}, acc ->
-          ms_children = Query.children(loom, m_id) |> MapSet.new()
+          ms_children = Query.children(tapestry, m_id) |> MapSet.new()
           Enum.filter(acc, fn {id, _data} -> id in ms_children end)
 
         {:assignee, user_id}, acc ->
-          Enum.filter(acc, fn {id, _data} -> Query.assignee(loom, id) == user_id end)
+          Enum.filter(acc, fn {id, _data} -> Query.assignee(tapestry, id) == user_id end)
 
         {:label, label_id}, acc ->
-          Enum.filter(acc, fn {id, _data} -> tagged_with?(loom, id, label_id) end)
+          Enum.filter(acc, fn {id, _data} -> tagged_with?(tapestry, id, label_id) end)
 
         _, acc ->
           acc
@@ -76,7 +76,7 @@ defmodule Tapestry.View.Kanban do
 
           cards =
             Enum.map(col_tasks, fn {id, data} ->
-              render_task_card(loom, id, data)
+              render_task_card(tapestry, id, data)
             end)
 
           ["  #{col_id}[#{col_name}]" | cards]
@@ -90,10 +90,10 @@ defmodule Tapestry.View.Kanban do
 
   # --- Helpers ---
 
-  defp render_task_card(loom, id, data) do
+  defp render_task_card(tapestry, id, data) do
     name = Helpers.escape(data[:title] || inspect(id))
     task_id = Helpers.sanitize_id(id)
-    meta = task_metadata(loom, id, data)
+    meta = task_metadata(tapestry, id, data)
 
     if meta == %{} do
       "    #{task_id}[#{name}]"
@@ -105,17 +105,17 @@ defmodule Tapestry.View.Kanban do
     end
   end
 
-  defp task_metadata(loom, id, data) do
+  defp task_metadata(tapestry, id, data) do
     %{}
-    |> maybe_put(:assigned, assignee_name(loom, id))
+    |> maybe_put(:assigned, assignee_name(tapestry, id))
     |> maybe_put(:priority, mermaid_priority(data[:priority]))
     |> maybe_put(:ticket, data[:ticket])
   end
 
-  defp assignee_name(loom, id) do
-    case Query.assignee(loom, id) do
+  defp assignee_name(tapestry, id) do
+    case Query.assignee(tapestry, id) do
       nil -> nil
-      user_id -> loom.graph.nodes[user_id][:name] || inspect(user_id)
+      user_id -> tapestry.graph.nodes[user_id][:name] || inspect(user_id)
     end
   end
 

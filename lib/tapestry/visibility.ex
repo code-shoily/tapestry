@@ -13,20 +13,24 @@ defmodule Tapestry.Visibility do
   Visibility specs are typically produced by `Tapestry.Viewable` protocol
   implementations, but can also be constructed directly:
 
-      # Load only tasks and milestones with dependency edges
-      vis = %Tapestry.Visibility{
-        node_types: [:task, :milestone],
-        edge_types: [:depends_on, :blocks, :contains],
-        fields: [:title, :status, :estimate_hours]
-      }
+      iex> vis = %Tapestry.Visibility{
+      ...>   node_types: [:task, :milestone],
+      ...>   edge_types: [:depends_on, :blocks, :contains],
+      ...>   fields: [:title, :status, :estimate_hours]
+      ...> }
+      iex> vis.node_types
+      [:task, :milestone]
 
-      # Load a scoped subgraph rooted at a milestone
-      vis = %Tapestry.Visibility{
-        root: :v1,
-        depth: 1,
-        node_types: [:task],
-        edge_types: [:contains]
-      }
+      iex> vis = %Tapestry.Visibility{
+      ...>   root: :v1,
+      ...>   depth: 1,
+      ...>   node_types: [:task],
+      ...>   edge_types: [:contains]
+      ...> }
+      iex> vis.root
+      :v1
+      iex> vis.depth
+      1
 
   ## Field Selection
 
@@ -61,6 +65,16 @@ defmodule Tapestry.Visibility do
   Returns true if this visibility includes the given node type.
 
   An empty `node_types` list means all types are included.
+
+  ## Examples
+
+      iex> vis = %Tapestry.Visibility{node_types: [:task]}
+      iex> Tapestry.Visibility.includes_node_type?(vis, :task)
+      true
+      iex> Tapestry.Visibility.includes_node_type?(vis, :user)
+      false
+      iex> Tapestry.Visibility.includes_node_type?(%Tapestry.Visibility{}, :user)
+      true
   """
   @spec includes_node_type?(t(), atom()) :: boolean()
   def includes_node_type?(%__MODULE__{node_types: []}, _type), do: true
@@ -70,6 +84,14 @@ defmodule Tapestry.Visibility do
   Returns true if this visibility includes the given edge type.
 
   An empty `edge_types` list means all types are included.
+
+  ## Examples
+
+      iex> vis = %Tapestry.Visibility{edge_types: [:depends_on]}
+      iex> Tapestry.Visibility.includes_edge_type?(vis, :depends_on)
+      true
+      iex> Tapestry.Visibility.includes_edge_type?(vis, :contains)
+      false
   """
   @spec includes_edge_type?(t(), atom()) :: boolean()
   def includes_edge_type?(%__MODULE__{edge_types: []}, _type), do: true
@@ -81,6 +103,22 @@ defmodule Tapestry.Visibility do
   When `fields` is non-empty, only those fields are included.
   When `fields` is empty, all fields except `exclude_fields` are included.
   The `:type` field is always included.
+
+  ## Examples
+
+      iex> vis = %Tapestry.Visibility{fields: [:title]}
+      iex> Tapestry.Visibility.includes_field?(vis, :title)
+      true
+      iex> Tapestry.Visibility.includes_field?(vis, :status)
+      false
+      iex> Tapestry.Visibility.includes_field?(vis, :type)
+      true
+
+      iex> vis = %Tapestry.Visibility{exclude_fields: [:body]}
+      iex> Tapestry.Visibility.includes_field?(vis, :title)
+      true
+      iex> Tapestry.Visibility.includes_field?(vis, :body)
+      false
   """
   @spec includes_field?(t(), atom()) :: boolean()
   def includes_field?(_vis, :type), do: true
@@ -89,6 +127,12 @@ defmodule Tapestry.Visibility do
 
   @doc """
   Filters a node's data map according to this visibility's field rules.
+
+  ## Examples
+
+      iex> vis = %Tapestry.Visibility{fields: [:title]}
+      iex> Tapestry.Visibility.filter_fields(vis, %{type: :task, title: "A", body: "B"})
+      %{type: :task, title: "A"}
   """
   @spec filter_fields(t(), map()) :: map()
   def filter_fields(%__MODULE__{fields: [], exclude_fields: []} = _vis, data), do: data
@@ -99,6 +143,12 @@ defmodule Tapestry.Visibility do
 
   @doc """
   Returns a visibility that includes everything (no filtering).
+
+  ## Examples
+
+      iex> vis = Tapestry.Visibility.all()
+      iex> vis.node_types
+      []
   """
   @spec all() :: t()
   def all, do: %__MODULE__{}
